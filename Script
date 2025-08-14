@@ -1,0 +1,178 @@
+-- Delta Mobile: GUI estilizada arrastável Hitbox + Godmode + Vários Modos de Regeneração + Barra de Vida
+
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+-- Estados
+local hitboxActive = false
+local godmodeActive = false
+local MAX_HEALTH = 99999999999999
+local regenModes = {normal=false, turbo=false, explosiva=false}
+
+-- Funções principais
+local function toggleHitbox()
+    hitboxActive = not hitboxActive
+    for _, part in pairs(character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = not hitboxActive
+        end
+    end
+end
+
+local function toggleGodmode()
+    godmodeActive = not godmodeActive
+end
+
+local function toggleRegen(mode)
+    regenModes[mode] = not regenModes[mode]
+end
+
+local function applyGodmode()
+    humanoid.Health = MAX_HEALTH
+    humanoid:SetAttribute("PreventDeath", true)
+end
+
+humanoid.Died:Connect(function()
+    if humanoid:GetAttribute("PreventDeath") then
+        humanoid.Health = MAX_HEALTH
+    end
+end)
+
+-- GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "DeltaStylishUI"
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- Frame principal arrastável
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0,260,0,400)
+mainFrame.Position = UDim2.new(0,50,0,50)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+mainFrame.BackgroundTransparency = 0.2
+mainFrame.Parent = screenGui
+local uicornerMain = Instance.new("UICorner", mainFrame)
+uicornerMain.CornerRadius = UDim.new(0,16)
+local uiStroke = Instance.new("UIStroke", mainFrame)
+uiStroke.Thickness = 1.5
+uiStroke.Color = Color3.fromRGB(0,0,0)
+
+-- Função para arrastar
+local dragging = false
+local dragInput, dragStart, startPos
+
+mainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+mainFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input == dragInput then
+        local delta = input.Position - dragStart
+        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- Função para criar botões estilizados
+local function createButton(name, pos, color)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0,220,0,50)
+    btn.Position = pos
+    btn.BackgroundColor3 = color
+    btn.Text = name.." OFF"
+    btn.TextScaled = true
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.BackgroundTransparency = 0
+    btn.Parent = mainFrame
+    btn.AutoButtonColor = true
+    -- Cantos arredondados
+    local uicorner = Instance.new("UICorner", btn)
+    uicorner.CornerRadius = UDim.new(0,12)
+    -- Sombra
+    local uistroke = Instance.new("UIStroke", btn)
+    uistroke.Thickness = 1.5
+    uistroke.Color = Color3.fromRGB(0,0,0)
+    return btn
+end
+
+-- Botões
+local hitboxBtn = createButton("Hitbox Invisível", UDim2.new(0,20,0,20), Color3.fromRGB(0,170,255))
+local godmodeBtn = createButton("Godmode", UDim2.new(0,20,0,80), Color3.fromRGB(255,0,0))
+local normalBtn = createButton("Reg. Normal", UDim2.new(0,20,0,140), Color3.fromRGB(0,200,0))
+local turboBtn = createButton("Reg. Turbo", UDim2.new(0,20,0,200), Color3.fromRGB(255,140,0))
+local explosivaBtn = createButton("Reg. Explosiva", UDim2.new(0,20,0,260), Color3.fromRGB(255,0,255))
+
+-- Barra de vida
+local healthFrame = Instance.new("Frame")
+healthFrame.Size = UDim2.new(0, 220, 0, 25)
+healthFrame.Position = UDim2.new(0,20,0,330)
+healthFrame.BackgroundColor3 = Color3.fromRGB(50,50,50)
+healthFrame.BackgroundTransparency = 0.3
+healthFrame.Parent = mainFrame
+local healthBar = Instance.new("Frame")
+healthBar.Size = UDim2.new(1,0,1,0)
+healthBar.BackgroundColor3 = Color3.fromRGB(0,255,0)
+healthBar.BorderSizePixel = 0
+healthBar.Parent = healthFrame
+local uicornerBar = Instance.new("UICorner", healthBar)
+uicornerBar.CornerRadius = UDim.new(0,12)
+
+-- Eventos dos botões
+hitboxBtn.MouseButton1Click:Connect(function()
+    toggleHitbox()
+    hitboxBtn.Text = "Hitbox Invisível: "..(hitboxActive and "ON" or "OFF")
+end)
+
+godmodeBtn.MouseButton1Click:Connect(function()
+    toggleGodmode()
+    godmodeBtn.Text = "Godmode: "..(godmodeActive and "ON" or "OFF")
+end)
+
+normalBtn.MouseButton1Click:Connect(function() toggleRegen("normal") normalBtn.Text = "Reg. Normal: "..(regenModes.normal and "ON" or "OFF") end)
+turboBtn.MouseButton1Click:Connect(function() toggleRegen("turbo") turboBtn.Text = "Reg. Turbo: "..(regenModes.turbo and "ON" or "OFF") end)
+explosivaBtn.MouseButton1Click:Connect(function() toggleRegen("explosiva") explosivaBtn.Text = "Reg. Explosiva: "..(regenModes.explosiva and "ON" or "OFF") end)
+
+-- Loop principal
+RunService.Heartbeat:Connect(function()
+    -- Hitbox
+    if hitboxActive then
+        for _, part in pairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end
+    -- Godmode
+    if godmodeActive then
+        applyGodmode()
+    end
+    -- Regeneração múltipla
+    if regenModes.normal then
+        humanoid.Health = math.min(humanoid.Health + 5000, MAX_HEALTH)
+    end
+    if regenModes.turbo then
+        humanoid.Health = math.min(humanoid.Health + 20000, MAX_HEALTH)
+    end
+    if regenModes.explosiva then
+        humanoid.Health = MAX_HEALTH
+    end
+    -- Atualiza barra de vida animada
+    local healthPercent = math.clamp(humanoid.Health/MAX_HEALTH,0,1)
+    healthBar:TweenSize(UDim2.new(healthPercent,0,1,0), "Out", "Quad", 0.1, true)
+end)
